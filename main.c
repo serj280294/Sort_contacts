@@ -1,10 +1,10 @@
-#include <stdio.h>
+ #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <windows.h>
 
 #define ENTRYSAMO 20 // Количество записей, под которое предварительно выделяется память
-#define BUFSTRLEN 15 // Максимальная длина одной записи
+#define BUFSTRLEN 30 // Максимальная длина одной записи
 #define WDSBFNUM 2   // Количество слов, перед номером телефона, в записи
 
 #define READ_ONLY "r"
@@ -26,6 +26,9 @@ char* getString(FILE *fp, int *st, int *ef);
 void slfree(char **lst, int stramo);
 int lststrcmp(const void *a, const void *b);
 void toendstr(FILE *f, int *ef);
+int isspacesmb(char c);
+int isletter(char c);
+int isnumber(char c);
 
 int main()
 {
@@ -83,7 +86,7 @@ char** getContacts(int *opst)
     while (!(fend)) {
         if (str) {
 
-            printf("S%d: %s\n", j, str);
+            printf("S%d: %s %d\n", j, str, strlen(str));
 
             if (i == ENTRYSAMO * coalloc) { // Превышен размер массива указателей на строки
                 ++coalloc; // Увеличиваем множитель количества ячеек
@@ -135,12 +138,14 @@ char* getString(FILE *fp, int *st, int *ef)
 {
     char *str, c;
     int stitms = 0; // Счетчик пунктов, содержащихся в записи телефонной книги
-    int i = 0, len = 0;
+    int len = 0;
+    int i = 0;
 
     *st = 0; // Сброс состояния переменной статуса операции
 
     // Выделяем память под строку
-    str = (char*) malloc(1000 * sizeof(char));
+    str = (char*) malloc(BUFSTRLEN * sizeof(char));
+
 
     while ((c = fgetc(fp)) != EOF && c != '\n') {
         if (i == BUFSTRLEN-1) {
@@ -149,14 +154,13 @@ char* getString(FILE *fp, int *st, int *ef)
             free(str);
             return NULL;
         }
-
-        if (isspace(c)) { // Заменить!!!
+        if (isspacesmb(c)) {
             if (i != 0 && !(isspace(str[i-1])) && stitms < WDSBFNUM+1) {
                 str[i] = ' ';
                 ++i;
             }
         }
-        else if (isalpha(c)) { // Заменить на isletter
+        else if (isletter(c)) {
             if (i == 0 || isspace(str[i-1]))
                 ++stitms;
 
@@ -169,13 +173,14 @@ char* getString(FILE *fp, int *st, int *ef)
             str[i] = c;
             ++i;
         }
-        else if (isdigit(c)) { // Заменить на isnumber
-            if (isspace(str[i-1]) && stitms == WDSBFNUM) { // Начало номера
+        else if (isnumber(c)) {
+            if (isspace(str[i-1]) && stitms == WDSBFNUM) {
                 ++stitms;
             }
+
             else if (stitms > WDSBFNUM+1) {
                 toendstr(fp, ef);
-                *st = MANYNUMBS; // Номер уже был прочитан
+                *st = MANYNUMBS;
                 free(str);
                 return NULL;
             }
@@ -196,38 +201,26 @@ char* getString(FILE *fp, int *st, int *ef)
 
     str[i] = '\0';
 
-    return str;
+    return (char*) realloc(str, i * sizeof(char)); // Перераспределяем память по размеру строки
+}
 
-    //if (stsc > 0) {
-       // printf("%s\n", str);
-    //}
+// isspacesmb: Проверяет, является ли символ пробельным
+int isspacesmb(char c)
+{
+    return (c == ' ' || c == ',' || c == '.' || c == '_'|| c == '\t') ? 1 : 0;
+}
 
-    // Проверка на новую строку
+// isletter: Проверяет, является ли символ буквой русского или английского алфавита
+int isletter(char c)
+{
+    return (c >= (unsigned char)'А' && c <= (unsigned char)'я') ||
+           (c >= (unsigned char)'A' && c <= (unsigned char)'z') ? 1 : 0;
+}
 
-    // Перераспределить память
-
-    //stsc = fscanf(fp, "%s%n", str, &a);
-
-    //if (stsc > 0) {
-        //printf("%s\n", str);
-    //}
-
-    //if (stsc > 0) {
-    //    return str;
-    //}
-    //else {
-        // Произошла ошибка
-//        switch (stsc) {
-//        case EOF:
-//            *st = ENDFILE;
-//            break;
-//        case 0:
-//            *st = STRERR;
-//            break;
-//        }
-//        free(str);
-//        return NULL;
-    //}
+// isnumber: Проверяет, относится ли символ к номеру
+int isnumber(char c)
+{
+    return ((c >= 0 && c <=9) || c == '+' || c == '-' || c == '(' || c == ')') ? 1 : 0;
 }
 
 // toendstr: сдвигает указатель файла на символ, следующий за концом строки
