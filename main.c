@@ -3,6 +3,9 @@
 #include <ctype.h>
 #include <windows.h>
 
+#define NAMESLEN  30 // Длина строк, хранящих имя, фамилию, отчество
+#define NUMLEN    20 // Длина строки, хранящей телефонный номер
+
 #define READ_ONLY "r"
 #define ERROR_OPEN_INPUT_FILE -1 // Код ошибки чтения входного файла
 
@@ -10,7 +13,10 @@
 #define SCSFILE "data/output.txt" // Файл с отсортированным списком контактов
 
 typedef struct scts {
-    int n;
+    char fname[NAMESLEN]; // Хранит имя
+    char lname[NAMESLEN]; // Хранит фамилию
+    char ptnmc[NAMESLEN]; // Хранит отчество
+    char tnumb[NUMLEN];   // Хранит телефонный номер
 } contstr;
 
 contstr** getContacts(int *res);
@@ -23,7 +29,7 @@ int main()
     SetConsoleOutputCP(1251);
 
     contstr **cts = NULL; // Указатель на массив строк, прочитанных из файла
-    int resgs = 0;     // Переменная, хранящая число прочитанных строк или код ошибки
+    int resgs = 0;        // Переменная, хранящая число прочитанных строк или код ошибки
     int i = 0;
 
     if (!(cts = getContacts(&resgs)))
@@ -46,7 +52,7 @@ void printlst(const contstr** cslst, int lstlen)
     int i = 0;
 
     while (i < lstlen) {
-        printf("%3d %d\n", i, cslst[i]->n);
+        printf("%s %s %s %s\n", cslst[i]->fname, cslst[i]->lname, cslst[i]->ptnmc, cslst[i]->tnumb);
         ++i;
     }
 }
@@ -54,16 +60,21 @@ void printlst(const contstr** cslst, int lstlen)
 // cpstrobj: сравнивает два объекта из множества
 int cpstrobj(const void *a, const void *b)
 {
-    int cmpval_a, cmpval_b;
-    cmpval_a = (*((contstr**)a))->n;
-    cmpval_b = (*((contstr**)b))->n;
+    int res = 0;
 
-    if (cmpval_a > cmpval_b)
-        return 1;
-    else if (cmpval_a < cmpval_b)
-        return -1;
-    else if (cmpval_a == cmpval_b)
-        return 0;
+    if (res = strcmp((*((contstr**)a))->fname, (*((contstr**)b))->fname)) {
+        return res;
+    }
+    // Если имена совпадают - сравнить фамилии
+    else if (res = strcmp((*((contstr**)a))->lname, (*((contstr**)b))->lname)) {
+        return res;
+    }
+    // Если фамилии совпадают - сравнить отчества
+    else if (res = strcmp((*((contstr**)a))->ptnmc, (*((contstr**)b))->ptnmc)) {
+        return res;
+    }
+    else
+        return 0; // Строки одинаковы
 }
 
 // getContacts: возвращает указатель на множество объектов структуры или NULL, в случае ошибки
@@ -72,8 +83,9 @@ contstr** getContacts(int *res)
 {
     FILE *csFile;            // Указатель на поток открытого файла
     contstr **csList = NULL; // Список указателей на объекты структуры, хранящие записи файла
-    int enitem = 0;          // Хранит пункт записи телефонной книги
+    contstr entry;           // Хранит строку записи телефонной книги, считанной из файла
     int stcnt = 0;           // Счетчик строк, прочитанных из файла
+
     int i = 0;
 
     if ((csFile = fopen(CSFILE, READ_ONLY)) == NULL) {
@@ -84,10 +96,16 @@ contstr** getContacts(int *res)
     // Выделяем память для хранения указателей на объекты структуры
     csList = (contstr **) malloc(15 * sizeof(contstr *));
 
-    while(fscanf(csFile, "%d", &enitem) != EOF) {
+    while(fscanf(csFile, "%s %s %s %s", &entry.fname, &entry.lname, &entry.ptnmc, &entry.tnumb) != EOF) {
         // Выделяем память для объекта структуры
         csList[stcnt] = (contstr*) malloc(sizeof(contstr));
-        csList[stcnt]->n = enitem;
+
+        // Перенос строковых данных
+        memccpy(csList[stcnt]->fname, entry.fname, (int)'\0', sizeof(csList[stcnt]->fname));
+        memccpy(csList[stcnt]->lname, entry.lname, (int)'\0', sizeof(csList[stcnt]->lname));
+        memccpy(csList[stcnt]->ptnmc, entry.ptnmc, (int)'\0', sizeof(csList[stcnt]->ptnmc));
+        memccpy(csList[stcnt]->tnumb, entry.tnumb, (int)'\0', sizeof(csList[stcnt]->tnumb));
+
         ++stcnt;
     }
 
