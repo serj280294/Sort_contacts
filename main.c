@@ -3,8 +3,15 @@
 #include <ctype.h>
 #include <windows.h>
 
-#define NAMESLEN  30 // Длина строк, хранящих имя, фамилию, отчество
-#define NUMLEN    20 // Длина строки, хранящей телефонный номер
+#define ENTRYSAMO 20 // Количество записей, под которое выделяется память
+
+#define NAMESLEN 30 // Длина строк, в объекте структуры, хранящих имя, фамилию, отчество
+#define NUMLEN   20 // Длина строки, в объекте структуры, хранящей телефонный номер
+
+#define STRNAMESLEN "29" // Должно совпадать с NAMESLEN-1 (Чтобы вместился символ конца строки)
+#define STRNUMLEN   "19" // Должно совпадать с NUMLEN-1 (Чтобы вместился символ конца строки)
+#define SCANFMTSTR  "%" STRNAMESLEN "s %" STRNAMESLEN "s %" STRNAMESLEN "s %" STRNUMLEN "s"
+#define PRINTFMTSTR "%s %s %s %s\n"
 
 #define READ_ONLY "r"
 #define ERROR_OPEN_INPUT_FILE -1 // Код ошибки чтения входного файла
@@ -13,10 +20,10 @@
 #define SCSFILE "data/output.txt" // Файл с отсортированным списком контактов
 
 typedef struct scts {
-    char fname[NAMESLEN]; // Хранит имя
-    char lname[NAMESLEN]; // Хранит фамилию
-    char ptnmc[NAMESLEN]; // Хранит отчество
-    char tnumb[NUMLEN];   // Хранит телефонный номер
+    char fname[NAMESLEN]; // First name
+    char lname[NAMESLEN]; // Last name
+    char ptnmc[NAMESLEN]; // Patronymic
+    char tnumb[NUMLEN];   // Telephone number
 } contstr;
 
 contstr** getContacts(int *res);
@@ -32,16 +39,17 @@ int main()
     int resgs = 0;        // Переменная, хранящая число прочитанных строк или код ошибки
     int i = 0;
 
-    if (!(cts = getContacts(&resgs)))
+    if (!(cts = getContacts(&resgs))) {
         return resgs;
+    }
 
-    printf("Исходный список:\n");
-    printlst(cts, resgs); // Выводит на консоль содержимое массива
+    printf("Initial list:\n");
+    printlst(cts, resgs);
 
-    qsort(cts, resgs, sizeof(cts), cpstrobj);
+//    qsort(cts, resgs, sizeof(cts), cpstrobj);
 
-    printf("\nОтсортированный список:\n");
-    printlst(cts, resgs); // Выводит на консоль содержимое массива
+//    printf("\nSorted list:\n");
+//    printlst(cts, resgs);
 
     return 0;
 }
@@ -52,7 +60,7 @@ void printlst(const contstr** cslst, int lstlen)
     int i = 0;
 
     while (i < lstlen) {
-        printf("%s %s %s %s\n", cslst[i]->fname, cslst[i]->lname, cslst[i]->ptnmc, cslst[i]->tnumb);
+        printf(PRINTFMTSTR, cslst[i]->fname, cslst[i]->lname, cslst[i]->ptnmc, cslst[i]->tnumb);
         ++i;
     }
 }
@@ -94,9 +102,9 @@ contstr** getContacts(int *res)
     }
 
     // Выделяем память для хранения указателей на объекты структуры
-    csList = (contstr **) malloc(15 * sizeof(contstr *));
+    csList = (contstr **) malloc(ENTRYSAMO * sizeof(contstr *));
 
-    while(fscanf(csFile, "%s %s %s %s", &entry.fname, &entry.lname, &entry.ptnmc, &entry.tnumb) != EOF) {
+    while(fscanf(csFile, SCANFMTSTR, &entry.fname, &entry.lname, &entry.ptnmc, &entry.tnumb) != EOF) {
         // Выделяем память для объекта структуры
         csList[stcnt] = (contstr*) malloc(sizeof(contstr));
 
