@@ -13,22 +13,24 @@
 #define SCANFMTSTR  "%" STRNAMESLEN "s %" STRNAMESLEN "s %" STRNAMESLEN "s %" STRNUMLEN "s"
 #define PRINTFMTSTR "%s %s %s %s\n"
 
-#define READ_ONLY "r"
-#define ERROR_OPEN_INPUT_FILE -1 // Код ошибки чтения входного файла
+#define READ_ONLY  "r"
+#define FILE_WRITE "w"
+#define ERROR_OPEN_INPUT_FILE -1 // Код ошибки открытия входного файла
+#define ERROR_OPEN_OUTPUT_FILE -2 // Код ошибки открытия выходного файла
 
 #define CSFILE  "data/input.txt"  // Файл со списком контактов
 #define SCSFILE "data/output.txt" // Файл с отсортированным списком контактов
 
 typedef struct scts {
-    char fname[NAMESLEN]; // First name
     char lname[NAMESLEN]; // Last name
+    char fname[NAMESLEN]; // First name
     char ptnmc[NAMESLEN]; // Patronymic
     char tnumb[NUMLEN];   // Telephone number
 } contstr;
 
 contstr** getContacts(int *res);
 int cpstrobj(const void *a, const void *b);
-void printlst(const contstr** cslst, int lstlen);
+int saveList(const contstr** cslst, int lstlen);
 
 int main()
 {
@@ -36,33 +38,24 @@ int main()
     SetConsoleOutputCP(1251);
 
     contstr **cts = NULL; // Указатель на массив строк, прочитанных из файла
-    int resgs = 0;        // Переменная, хранящая число прочитанных строк или код ошибки
+    int resgs = 0;        // Число прочитанных строк или код ошибки
+    int wstat = 0;        // Число записанных в файл строк или код ошибки
     int i = 0;
 
     if (!(cts = getContacts(&resgs))) {
         return resgs;
     }
 
-    printf("Initial list:\n");
-    printlst(cts, resgs);
-
     qsort(cts, resgs, sizeof(cts), cpstrobj);
 
-    printf("\nSorted list:\n");
-    printlst(cts, resgs);
+    if ((wstat = saveList(cts, resgs)) > 0) {
+        printf("Sorted list successfully written to file");
+    }
+    else {
+        return wstat;
+    }
 
     return 0;
-}
-
-// printlst: выводит на экран содержимое массива
-void printlst(const contstr** cslst, int lstlen)
-{
-    int i = 0;
-
-    while (i < lstlen) {
-        printf(PRINTFMTSTR, cslst[i]->fname, cslst[i]->lname, cslst[i]->ptnmc, cslst[i]->tnumb);
-        ++i;
-    }
 }
 
 // cpstrobj: сравнивает два объекта из множества
@@ -70,11 +63,11 @@ int cpstrobj(const void *a, const void *b)
 {
     int res = 0;
 
-    if (res = strcmp((*((contstr**)a))->fname, (*((contstr**)b))->fname)) {
+    if (res = strcmp((*((contstr**)a))->lname, (*((contstr**)b))->lname)) {
         return res;
     }
     // Если имена совпадают - сравнить фамилии
-    else if (res = strcmp((*((contstr**)a))->lname, (*((contstr**)b))->lname)) {
+    else if (res = strcmp((*((contstr**)a))->fname, (*((contstr**)b))->fname)) {
         return res;
     }
     // Если фамилии совпадают - сравнить отчества
@@ -83,6 +76,26 @@ int cpstrobj(const void *a, const void *b)
     }
     else
         return 0; // Строки одинаковы
+}
+
+int saveList(const contstr** cslst, int lstlen)
+{
+    FILE *csFile; // Указатель на поток открытого файла
+    int i = 0;
+
+    if ((csFile = fopen(SCSFILE, FILE_WRITE)) == NULL) {
+        return ERROR_OPEN_OUTPUT_FILE;
+    }
+
+    while (i < lstlen) {
+        fprintf(csFile, PRINTFMTSTR, cslst[i]->lname, cslst[i]->fname, cslst[i]->ptnmc, cslst[i]->tnumb);
+        ++i;
+    }
+
+    fclose(csFile);
+
+    return i;
+
 }
 
 // getContacts: возвращает указатель на множество объектов структуры или NULL, в случае ошибки
@@ -104,7 +117,7 @@ contstr** getContacts(int *res)
     // Выделяем память для хранения указателей на объекты структуры
     csList = (contstr **) malloc(ENTRYSAMO * sizeof(contstr *));
 
-    while(fscanf(csFile, SCANFMTSTR, &entry.fname, &entry.lname, &entry.ptnmc, &entry.tnumb) != EOF) {
+    while(fscanf(csFile, SCANFMTSTR, &entry.lname, &entry.fname, &entry.ptnmc, &entry.tnumb) != EOF) {
         if (stcnt == ENTRYSAMO * coext) {
             // Увеличиваем объем выделенной памяти для хранения указателей на объекты структуры
             ++coext;
@@ -115,8 +128,8 @@ contstr** getContacts(int *res)
         csList[stcnt] = (contstr*) malloc(sizeof(contstr));
 
         // Перенос строковых данных
-        memccpy(csList[stcnt]->fname, entry.fname, (int)'\0', sizeof(csList[stcnt]->fname));
         memccpy(csList[stcnt]->lname, entry.lname, (int)'\0', sizeof(csList[stcnt]->lname));
+        memccpy(csList[stcnt]->fname, entry.fname, (int)'\0', sizeof(csList[stcnt]->fname));
         memccpy(csList[stcnt]->ptnmc, entry.ptnmc, (int)'\0', sizeof(csList[stcnt]->ptnmc));
         memccpy(csList[stcnt]->tnumb, entry.tnumb, (int)'\0', sizeof(csList[stcnt]->tnumb));
 
@@ -127,6 +140,8 @@ contstr** getContacts(int *res)
         // Уменьшить количество выделенной памяти под указатели на объекты структур
         csList = (contstr **) realloc(csList, stcnt * sizeof(contstr *));
     }
+
+    fclose(csFile);
 
     *res = stcnt;
     return csList;
