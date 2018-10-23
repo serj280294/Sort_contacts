@@ -46,10 +46,10 @@ int main()
     printf("Initial list:\n");
     printlst(cts, resgs);
 
-//    qsort(cts, resgs, sizeof(cts), cpstrobj);
+    qsort(cts, resgs, sizeof(cts), cpstrobj);
 
-//    printf("\nSorted list:\n");
-//    printlst(cts, resgs);
+    printf("\nSorted list:\n");
+    printlst(cts, resgs);
 
     return 0;
 }
@@ -92,8 +92,8 @@ contstr** getContacts(int *res)
     FILE *csFile;            // Указатель на поток открытого файла
     contstr **csList = NULL; // Список указателей на объекты структуры, хранящие записи файла
     contstr entry;           // Хранит строку записи телефонной книги, считанной из файла
+    int coext = 1;           // Множитель объема памяти, выделяемого для хранения строк файла
     int stcnt = 0;           // Счетчик строк, прочитанных из файла
-
     int i = 0;
 
     if ((csFile = fopen(CSFILE, READ_ONLY)) == NULL) {
@@ -105,6 +105,12 @@ contstr** getContacts(int *res)
     csList = (contstr **) malloc(ENTRYSAMO * sizeof(contstr *));
 
     while(fscanf(csFile, SCANFMTSTR, &entry.fname, &entry.lname, &entry.ptnmc, &entry.tnumb) != EOF) {
+        if (stcnt == ENTRYSAMO * coext) {
+            // Увеличиваем объем выделенной памяти для хранения указателей на объекты структуры
+            ++coext;
+            csList = (contstr **) realloc(csList, ENTRYSAMO * coext * sizeof(contstr *));
+        }
+
         // Выделяем память для объекта структуры
         csList[stcnt] = (contstr*) malloc(sizeof(contstr));
 
@@ -117,7 +123,10 @@ contstr** getContacts(int *res)
         ++stcnt;
     }
 
-    // Перераспределить память
+    if (stcnt < ENTRYSAMO * coext) {
+        // Уменьшить количество выделенной памяти под указатели на объекты структур
+        csList = (contstr **) realloc(csList, stcnt * sizeof(contstr *));
+    }
 
     *res = stcnt;
     return csList;
